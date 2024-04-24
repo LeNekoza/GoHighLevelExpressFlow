@@ -2,9 +2,9 @@ import express from "express";
 import { db } from "../redis/ds.js";
 import axios from "axios";
 import { URLSearchParams } from "url";
+import refreshToken from "../utils/refreshToken.js";
 import dotenv from "dotenv";
 dotenv.config();
-
 var router = express.Router();
 
 /* GET home page. */
@@ -38,10 +38,16 @@ router.get("/", async function (req, res, next) {
     } catch (err) {
       console.log(err); /* 
   res.json({error:err}) */
-      return res.redirect("/rehydrate");
+      await refreshToken().then((response) => {
+        if (response.error) {
+          return res.json({ error: response.error });
+        } else {
+          return res.json({ message: response.message });
+        }
+      });
     }
   } else {
-    return res.redirect(process.env.SIGN_IN);
+    return res.json({ error: "Session not found" });
   }
 });
 
@@ -164,14 +170,16 @@ router.get("/freeslots", async function (req, res) {
     try {
       const response = await axios.request(options);
 
-      return res.render("index", {
-        title: `🚀Redis, you there?: ${reply}`,
-        data: JSON.stringify(response.data),
-      });
+      return res.json({ data: response.data });
     } catch (err) {
       console.log(err);
-      res.json({ error: err });
-      return res.redirect("/rehydrate");
+      await refreshToken().then((response) => {
+        if (response.error) {
+          return res.json({ error: response.error });
+        } else {
+          return res.json({ message: response.message });
+        }
+      });
     }
   } else {
     return res.redirect(process.env.SIGN_IN);
