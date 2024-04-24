@@ -3,7 +3,7 @@ import express from "express";
 import path from "path";
 import cookieParser from "cookie-parser";
 import logger from "morgan";
-import client from "./redis/ds.js";
+import { db } from "./redis/ds.js";
 import indexRouter from "./routes/index.js";
 import dotenv from "dotenv";
 import cors from "cors";

@@ -1,5 +1,5 @@
 import express from "express";
-import client from "../redis/ds.js";
+import { db } from "../redis/ds.js";
 import axios from "axios";
 import { URLSearchParams } from "url";
 import dotenv from "dotenv";
@@ -9,16 +9,15 @@ var router = express.Router();
 
 /* GET home page. */
 router.get("/", async function (req, res, next) {
-  await client.connect();
-  await client.set("key", "YES");
-  const reply = await client.get("key");
+  await db.set("key", "YES");
+  const reply = await db.get("key");
   console.log("🚀Redis, you there?: ", reply);
-  const token = await client.get("refresh_token");
+  const token = await db.get("refresh_token");
   if (token) {
     const data = new URLSearchParams();
     data.set("locationId", `${process.env.LOCATION_ID}`);
     data.set("groupId", `${process.env.GROUP_ID}`);
-    const access_token = await client.get("access_token");
+    const access_token = await db.get("access_token");
     const options = {
       method: "GET",
       url: "https://services.leadconnectorhq.com/calendars/",
@@ -34,22 +33,19 @@ router.get("/", async function (req, res, next) {
     };
     try {
       const response = await axios.request(options);
-      await client.disconnect();
+
       return res.json({ data: JSON.stringify(response.data) });
     } catch (err) {
-      await client.disconnect();
       console.log(err); /* 
   res.json({error:err}) */
       return res.redirect("/rehydrate");
     }
   } else {
-    await client.disconnect();
     return res.redirect(process.env.SIGN_IN);
   }
 });
 
 router.get("/generateAccess", async function (req, res) {
-  await client.connect();
   const client_id = process.env.GHL_CLIENT_ID;
   const client_secret = process.env.GHL_CLIENT_SECRET;
   res.render("index", {
@@ -58,11 +54,10 @@ router.get("/generateAccess", async function (req, res) {
 });
 
 router.get("/oauth", async function (req, res) {
-  await client.connect();
   //get params from the url
   const code = req.query.code ?? "";
   if (code.trim() == "") {
-    client.disconnect();
+    db.disconnect();
     return res.render("oauth", { error: "No code found" });
   }
   const data = new URLSearchParams();
@@ -84,25 +79,23 @@ router.get("/oauth", async function (req, res) {
     let oneMonthExpiry = 60 * 60 * 24 * 30;
     const { data } = await axios.request(options);
     console.log(data);
-    await client.set("access_token", data.access_token, {
+    await db.set("access_token", data.access_token, {
       EX: data.expires_in,
     });
-    const key = await client.get("access_token");
-    await client.set("refresh_token", data.refresh_token, {
+    const key = await db.get("access_token");
+    await db.set("refresh_token", data.refresh_token, {
       EX: oneMonthExpiry,
     });
-    await client.disconnect();
+
     res.json({ key });
     res.render("oauth", { code: code });
   } catch (err) {
-    await client.disconnect();
     res.render("oauth", { error: err });
   }
 });
 
 router.get("/rehydrate", async function (req, res) {
-  await client.connect();
-  const refresh_token = await client.get("refresh_token");
+  const refresh_token = await db.get("refresh_token");
   if (refresh_token) {
     const data = new URLSearchParams();
     data.set("refresh_token", refresh_token);
@@ -124,39 +117,37 @@ router.get("/rehydrate", async function (req, res) {
       let oneMonthExpiry = 60 * 60 * 24 * 30;
       const { data } = await axios.request(options);
       console.log(data);
-      await client.set("access_token", data.access_token, {
+      await db.set("access_token", data.access_token, {
         EX: data.expires_in,
       });
-      const key = await client.get("access_token");
-      await client.set("refresh_token", data.refresh_token, {
+      const key = await db.get("access_token");
+      await db.set("refresh_token", data.refresh_token, {
         EX: oneMonthExpiry,
       });
-      await client.disconnect();
+
       res.json({ key });
     } catch (error) {
       console.error(error);
-      await client.disconnect();
+
       res.redirect(process.env.SIGN_IN);
     }
   }
 });
 
 router.get("/accessToken", async function (req, res) {
-  await client.connect();
-  const token = await client.get("refresh_token");
-  await client.disconnect();
+  const token = await db.get("refresh_token");
+
   res.json({ token });
 });
 export default router;
 
 router.get("/freeslots", async function (req, res) {
-  await client.connect();
-  const token = await client.get("refresh_token");
+  const token = await db.get("refresh_token");
   if (token) {
     const data = new URLSearchParams();
     data.set("locationId", `${process.env.LOCATION_ID}`);
     data.set("groupId", `${process.env.GROUP_ID}`);
-    const access_token = await client.get("access_token");
+    const access_token = await db.get("access_token");
     const options = {
       method: "GET",
       url: "https://services.leadconnectorhq.com/calendars/",
@@ -172,34 +163,30 @@ router.get("/freeslots", async function (req, res) {
     };
     try {
       const response = await axios.request(options);
-      await client.disconnect();
+
       return res.render("index", {
         title: `🚀Redis, you there?: ${reply}`,
         data: JSON.stringify(response.data),
       });
     } catch (err) {
-      await client.disconnect();
       console.log(err);
       res.json({ error: err });
       return res.redirect("/rehydrate");
     }
   } else {
-    await client.disconnect();
     return res.redirect(process.env.SIGN_IN);
   }
 });
 
 router.get("/deleteEverything", async (req, res) => {
-  await client.connect();
-  await client.del("access_token");
-  await client.del("refresh_token");
-  await client.disconnect();
+  await db.del("access_token");
+  await db.del("refresh_token");
+
   return res.json({ message: "Deleted everything" });
 });
 
 router.get("/deleteAccess", async (req, res) => {
-  await client.connect();
-  await client.del("access_token");
-  await client.disconnect();
+  await db.del("access_token");
+
   return res.json({ message: "Deleted access token" });
 });
