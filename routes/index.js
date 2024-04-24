@@ -9,17 +9,6 @@ var router = express.Router();
 
 /* GET home page. */
 router.get("/", async function (req, res, next) {
-  const allowedOrigins = ["http://localhost:3000", "https://127.0.0.1:5000"];
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  }
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-  );
-  res.header("Access-Control-Allow-credentials", true);
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, UPDATE");
   await client.connect();
   await client.set("key", "YES");
   const reply = await client.get("key");
@@ -60,17 +49,6 @@ router.get("/", async function (req, res, next) {
 });
 
 router.get("/generateAccess", async function (req, res) {
-  const allowedOrigins = ["http://localhost:3000", "https://127.0.0.1:5000"];
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  }
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-  );
-  res.header("Access-Control-Allow-credentials", true);
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, UPDATE");
   await client.connect();
   const client_id = process.env.GHL_CLIENT_ID;
   const client_secret = process.env.GHL_CLIENT_SECRET;
@@ -123,17 +101,6 @@ router.get("/oauth", async function (req, res) {
 });
 
 router.get("/rehydrate", async function (req, res) {
-  const allowedOrigins = ["http://localhost:3000", "https://127.0.0.1:5000"];
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  }
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-  );
-  res.header("Access-Control-Allow-credentials", true);
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, UPDATE");
   await client.connect();
   const refresh_token = await client.get("refresh_token");
   if (refresh_token) {
@@ -183,17 +150,6 @@ router.get("/accessToken", async function (req, res) {
 export default router;
 
 router.get("/freeslots", async function (req, res) {
-  const allowedOrigins = ["http://localhost:3000", "https://127.0.0.1:5000"];
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  }
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-  );
-  res.header("Access-Control-Allow-credentials", true);
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, UPDATE");
   await client.connect();
   const token = await client.get("refresh_token");
   if (token) {
@@ -234,17 +190,6 @@ router.get("/freeslots", async function (req, res) {
 });
 
 router.get("/deleteEverything", async (req, res) => {
-  const allowedOrigins = ["http://localhost:3000", "https://127.0.0.1:5000"];
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  }
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-  );
-  res.header("Access-Control-Allow-credentials", true);
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, UPDATE");
   await client.connect();
   await client.del("access_token");
   await client.del("refresh_token");
@@ -253,17 +198,6 @@ router.get("/deleteEverything", async (req, res) => {
 });
 
 router.get("/deleteAccess", async (req, res) => {
-  const allowedOrigins = ["http://localhost:3000", "https://127.0.0.1:5000"];
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  }
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-  );
-  res.header("Access-Control-Allow-credentials", true);
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, UPDATE");
   await client.connect();
   await client.del("access_token");
   await client.disconnect();

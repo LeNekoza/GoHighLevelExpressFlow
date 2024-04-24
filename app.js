@@ -9,7 +9,12 @@ import dotenv from "dotenv";
 import cors from "cors";
 
 var app = express();
-app.use(cors());
+app.use(
+  cors({
+    origin: ["http://localhost:3000", "https://127.0.0.1:5000"],
+    credentials: true,
+  })
+);
 const __dirname = path.resolve();
 // view engine setup
 dotenv.config();
