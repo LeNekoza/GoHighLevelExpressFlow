@@ -1,121 +1,120 @@
-import express from 'express';
-import client from '../redis/ds.js';
-import axios from 'axios';
-import {URLSearchParams} from 'url';
-import dotenv from 'dotenv';
+import express from "express";
+import { db } from "../redis/ds.js";
+import axios from "axios";
+import { URLSearchParams } from "url";
+import refreshToken from "../utils/refreshToken.js";
+import dotenv from "dotenv";
 dotenv.config();
-
 var router = express.Router();
 
 /* GET home page. */
-router.get('/', async function(req, res, next) {
- await client.connect();
-  await client.set('key', 'YES');
- const reply = await client.get('key')
-  console.log('🚀Redis, you there?: ', reply);
-  const token = await client.get('refresh_token');
- if(token){
-  const data = new URLSearchParams();
-  data.set('locationId', `${process.env.LOCATION_ID}`);
-  data.set('groupId',  `${process.env.GROUP_ID}`);
-  const access_token = await client.get('access_token');
-  const options = {
-    method: 'GET',
-    url: 'https://services.leadconnectorhq.com/calendars/',
-    headers: {Authorization: `Bearer ${access_token}`, Version: '2021-04-15', Accept: 'application/json'},
-    params: {locationId: process.env.LOCATION_ID, groupId: process.env.GROUP_ID},
+router.get("/", async function (req, res, next) {
+  await db.set("key", "YES");
+  const reply = await db.get("key");
+  console.log("🚀Redis, you there?: ", reply);
+  const token = await db.get("refresh_token");
+  if (token) {
+    const data = new URLSearchParams();
+    data.set("locationId", `${process.env.LOCATION_ID}`);
+    data.set("groupId", `${process.env.GROUP_ID}`);
+    const access_token = await db.get("access_token");
+    const options = {
+      method: "GET",
+      url: "https://services.leadconnectorhq.com/calendars/",
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+        Version: "2021-04-15",
+        Accept: "application/json",
+      },
+      params: {
+        locationId: process.env.LOCATION_ID,
+        groupId: process.env.GROUP_ID,
+      },
+    };
+    try {
+      const response = await axios.request(options);
 
-  };
-  try{
-  const response = await axios.request(options);
-  await client.disconnect();
-  return res.render('index', { title: `🚀Redis, you there?: ${reply}`, data: JSON.stringify(response.data)});
-}
-
-catch(err){
-  await client.disconnect();
-  console.log(err);/* 
+      return res.json({ data: response.data });
+    } catch (err) {
+      console.log(err); /* 
   res.json({error:err}) */
-  return res.redirect('/rehydrate')
-}
-
-}
-else{
-  await client.disconnect();
-  return res.redirect(process.env.SIGN_IN)
-}
+      await refreshToken().then((response) => {
+        if (response.error) {
+          return res.json({ error: response.error });
+        } else {
+          return res.json({ message: response.message });
+        }
+      });
+    }
+  } else {
+    return res.json({ error: "Session not found" });
+  }
 });
 
-
-router.get('/generateAccess',async function (req,res){
-  await client.connect();
+router.get("/generateAccess", async function (req, res) {
   const client_id = process.env.GHL_CLIENT_ID;
   const client_secret = process.env.GHL_CLIENT_SECRET;
-  res.render('index', { title: `🍍 ENV, you there?: ${client_id?"YUP":"NO!"}`});
-})
+  res.render("index", {
+    title: `🍍 ENV, you there?: ${client_id ? "YUP" : "NO!"}`,
+  });
+});
 
-router.get('/oauth',async function (req,res){
-  await client.connect();
+router.get("/oauth", async function (req, res) {
   //get params from the url
-  const code =  req.query.code??'';
-  if(code.trim()==''){
-    client.disconnect();
-    return res.render('oauth',{error:'No code found'})
+  const code = req.query.code ?? "";
+  if (code.trim() == "") {
+    db.disconnect();
+    return res.render("oauth", { error: "No code found" });
   }
-  const data = new URLSearchParams()
-  data.set('code',code)
-  data.set('client_id',process.env.GHL_CLIENT_ID)
-  data.set('client_secret',process.env.GHL_CLIENT_SECRET)
-  data.set('grant_type','authorization_code')
-  data.set('user_type','Location')
+  const data = new URLSearchParams();
+  data.set("code", code);
+  data.set("client_id", process.env.GHL_CLIENT_ID);
+  data.set("client_secret", process.env.GHL_CLIENT_SECRET);
+  data.set("grant_type", "authorization_code");
+  data.set("user_type", "Location");
   const options = {
-    method: 'POST',
-    url: 'https://services.leadconnectorhq.com/oauth/token',
+    method: "POST",
+    url: "https://services.leadconnectorhq.com/oauth/token",
     headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      Accept: 'application/json'
+      "Content-Type": "application/x-www-form-urlencoded",
+      Accept: "application/json",
     },
     data: data,
   };
-  try{
+  try {
     let oneMonthExpiry = 60 * 60 * 24 * 30;
     const { data } = await axios.request(options);
     console.log(data);
-    await client.set('access_token',data.access_token,{
-      EX: data.expires_in
+    await db.set("access_token", data.access_token, {
+      EX: data.expires_in,
     });
-    const key = await client.get('access_token')
-    await client.set('refresh_token',data.refresh_token,{
-      EX: oneMonthExpiry
+    const key = await db.get("access_token");
+    await db.set("refresh_token", data.refresh_token, {
+      EX: oneMonthExpiry,
     });
-    await client.disconnect();
-    res.json({key})
-    res.render('oauth',{code:code})
 
+    res.json({ key });
+    res.render("oauth", { code: code });
+  } catch (err) {
+    res.render("oauth", { error: err });
   }
-  catch(err){
-    await client.disconnect();
-    res.render('oauth',{error:err})
-  }
+});
 
-})
-
-router.get('/rehydrate',async function (req,res){
-  await client.connect();
-  const refresh_token = await client.get('refresh_token');
-  if(refresh_token){
-    const data = new URLSearchParams()
-    data.set('refresh_token',refresh_token)
-    data.set('client_id',process.env.GHL_CLIENT_ID)
-    data.set('client_secret',process.env.GHL_CLIENT_SECRET)
-    data.set('grant_type','refresh_token')
-    data.set('user_type','Location')
+router.get("/rehydrate", async function (req, res) {
+  const refresh_token = await db.get("refresh_token");
+  if (refresh_token) {
+    const data = new URLSearchParams();
+    data.set("refresh_token", refresh_token);
+    data.set("client_id", process.env.GHL_CLIENT_ID);
+    data.set("client_secret", process.env.GHL_CLIENT_SECRET);
+    data.set("grant_type", "refresh_token");
+    data.set("user_type", "Location");
     const options = {
-      method: 'POST',
-      url: 'https://services.leadconnectorhq.com/oauth/token',
+      method: "POST",
+      url: "https://services.leadconnectorhq.com/oauth/token",
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        Accept: 'application/json'
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json",
       },
       data: data,
     };
@@ -124,79 +123,78 @@ router.get('/rehydrate',async function (req,res){
       let oneMonthExpiry = 60 * 60 * 24 * 30;
       const { data } = await axios.request(options);
       console.log(data);
-      await client.set('access_token',data.access_token,{
-        EX: data.expires_in
+      await db.set("access_token", data.access_token, {
+        EX: data.expires_in,
       });
-      const key = await client.get('access_token')
-      await client.set('refresh_token',data.refresh_token,{
-        EX: oneMonthExpiry
+      const key = await db.get("access_token");
+      await db.set("refresh_token", data.refresh_token, {
+        EX: oneMonthExpiry,
       });
-      await client.disconnect();
-      res.json({key})
-      
+
+      res.json({ key });
     } catch (error) {
       console.error(error);
-      await client.disconnect();
-      res.redirect(process.env.SIGN_IN)
-    }    
-  }
-})
 
-router.get('/accessToken',async function (req,res){
-  await client.connect();
-  const token = await client.get('refresh_token');
-  await client.disconnect();
-  res.json({token})
-})
+      res.redirect(process.env.SIGN_IN);
+    }
+  }
+});
+
+router.get("/accessToken", async function (req, res) {
+  const token = await db.get("refresh_token");
+
+  res.json({ token });
+});
 export default router;
 
-router.get('/freeslots',async function (req,res){
-  await client.connect();
-  const token = await client.get('refresh_token');
-  if(token){
+router.get("/freeslots", async function (req, res) {
+  const token = await db.get("refresh_token");
+  if (token) {
     const data = new URLSearchParams();
-    data.set('locationId', `${process.env.LOCATION_ID}`);
-    data.set('groupId',  `${process.env.GROUP_ID}`);
-    const access_token = await client.get('access_token');
+    data.set("locationId", `${process.env.LOCATION_ID}`);
+    data.set("groupId", `${process.env.GROUP_ID}`);
+    const access_token = await db.get("access_token");
     const options = {
-      method: 'GET',
-      url: 'https://services.leadconnectorhq.com/calendars/',
-      headers: {Authorization: `Bearer ${access_token}`, Version: '2021-04-15', Accept: 'application/json'},
-      params: {locationId: process.env.LOCATION_ID, groupId: process.env.GROUP_ID},
-  
+      method: "GET",
+      url: "https://services.leadconnectorhq.com/calendars/",
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+        Version: "2021-04-15",
+        Accept: "application/json",
+      },
+      params: {
+        locationId: process.env.LOCATION_ID,
+        groupId: process.env.GROUP_ID,
+      },
     };
-    try{
-    const response = await axios.request(options);
-    await client.disconnect();
-    return res.render('index', { title: `🚀Redis, you there?: ${reply}`, data: JSON.stringify(response.data)});
-  }
-  
-  catch(err){
-    await client.disconnect();
-    console.log(err);
-    res.json({error:err})
-    return res.redirect('/rehydrate')
-  }
-  
-  }
-  else{
-    await client.disconnect();
-    return res.redirect(process.env.SIGN_IN)
-  }
-  }
-)
+    try {
+      const response = await axios.request(options);
 
-router.get('/deleteEverything',async(req,res)=>{
-  await client.connect();
-  await client.del('access_token');
-  await client.del('refresh_token');
-  await client.disconnect();
-  return res.json({message:'Deleted everything'})
-})
+      return res.json({ data: response.data });
+    } catch (err) {
+      console.log(err);
+      await refreshToken().then((response) => {
+        if (response.error) {
+          return res.json({ error: response.error });
+        } else {
+          return res.json({ message: response.message });
+        }
+      });
+    }
+  } else {
+    return res.json({ error: "Session not found" });
+  }
+});
 
-router.get('/deleteAccess',async(req,res)=>{
-  await client.connect();
-  await client.del('access_token');
-  await client.disconnect();
-  return res.json({message:'Deleted access token'})
-})
+router.get("/deleteEverything", async (req, res) => {
+  await db.del("access_token");
+  await db.del("refresh_token");
+
+  return res.json({ message: "Deleted everything" });
+});
+
+router.get("/deleteAccess", async (req, res) => {
+  await db.del("access_token");
+
+  return res.json({ message: "Deleted access token" });
+});
