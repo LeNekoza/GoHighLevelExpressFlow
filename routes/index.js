@@ -34,8 +34,8 @@ router.get('/', async function(req, res, next) {
 
 catch(err){
   await client.disconnect();
-  console.log(err);
-  res.json({error:err})
+  console.log(err);/* 
+  res.json({error:err}) */
   return res.redirect('/rehydrate')
 }
 
@@ -185,3 +185,18 @@ router.get('/freeslots',async function (req,res){
   }
   }
 )
+
+router.get('/deleteEverything',async(req,res)=>{
+  await client.connect();
+  await client.del('access_token');
+  await client.del('refresh_token');
+  await client.disconnect();
+  return res.json({message:'Deleted everything'})
+})
+
+router.get('/deleteAccess',async(req,res)=>{
+  await client.connect();
+  await client.del('access_token');
+  await client.disconnect();
+  return res.json({message:'Deleted access token'})
+})

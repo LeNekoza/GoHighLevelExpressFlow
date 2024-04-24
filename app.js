@@ -6,7 +6,10 @@ import logger from 'morgan';
 import client from './redis/ds.js';
 import indexRouter from './routes/index.js';
 import dotenv from 'dotenv';
+import cors from 'cors';
+
 var app = express();
+app.use(cors({origin: ['*']}));
 const __dirname = path.resolve();
 // view engine setup
 dotenv.config();
