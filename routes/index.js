@@ -34,7 +34,7 @@ router.get("/", async function (req, res, next) {
     try {
       const response = await axios.request(options);
 
-      return res.json({ data: JSON.stringify(response.data) });
+      return res.json({ data: response.data });
     } catch (err) {
       console.log(err); /* 
   res.json({error:err}) */
