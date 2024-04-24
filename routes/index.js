@@ -182,7 +182,7 @@ router.get("/freeslots", async function (req, res) {
       });
     }
   } else {
-    return res.redirect(process.env.SIGN_IN);
+    return res.json({ error: "Session not found" });
   }
 });
 
