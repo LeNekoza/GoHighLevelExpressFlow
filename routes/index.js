@@ -63,8 +63,8 @@ router.get("/", async function (req, res, next) {
             groupId: process.env.GROUP_ID,
           },
         };
-          const response = await axios.request(options);
-          return res.json({ data: response.data });
+          const lasttry = await axios.request(options);
+          return res.json({ data: lasttry.data });
         
       });
     }
