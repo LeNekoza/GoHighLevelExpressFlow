@@ -38,34 +38,38 @@ router.get("/", async function (req, res, next) {
     } catch (err) {
       console.log(err); /* 
   res.json({error:err}) */
-      await refreshToken().then((response) => {
+      await refreshToken().then(async(response) => {
         if (response.error) {
-          return res.json({ error: response.error });
+         return res.json({ error: response.error });
+
         } else {
-          return res.json({ message: response.message });
+          try{
+            const token = await db.get("refresh_token");
+          const data = new URLSearchParams();
+          data.set("locationId", `${process.env.LOCATION_ID}`);
+          data.set("groupId", `${process.env.GROUP_ID}`);
+          const access_token = await db.get("access_token");
+          const options = {
+            method: "GET",
+            url: "https://services.leadconnectorhq.com/calendars/",
+            headers: {
+              Authorization: `Bearer ${access_token}`,
+              Version: "2021-04-15",
+              Accept: "application/json",
+            },
+            params: {
+              locationId: process.env.LOCATION_ID,
+              groupId: process.env.GROUP_ID,
+            },
+          };
+            const lasttry = await axios.request(options);
+            return res.json({ data: lasttry.data });
         }
-      }).then(async(response) => {
-        const token = await db.get("refresh_token");
-        const data = new URLSearchParams();
-        data.set("locationId", `${process.env.LOCATION_ID}`);
-        data.set("groupId", `${process.env.GROUP_ID}`);
-        const access_token = await db.get("access_token");
-        const options = {
-          method: "GET",
-          url: "https://services.leadconnectorhq.com/calendars/",
-          headers: {
-            Authorization: `Bearer ${access_token}`,
-            Version: "2021-04-15",
-            Accept: "application/json",
-          },
-          params: {
-            locationId: process.env.LOCATION_ID,
-            groupId: process.env.GROUP_ID,
-          },
-        };
-          const lasttry = await axios.request(options);
-          return res.json({ data: lasttry.data });
-        
+        catch(err){
+          console.log(err);
+          res.json({error:err});
+        }
+        }
       });
     }
   } else {
