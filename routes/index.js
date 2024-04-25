@@ -44,6 +44,28 @@ router.get("/", async function (req, res, next) {
         } else {
           return res.json({ message: response.message });
         }
+      }).then(async(response) => {
+        const token = await db.get("refresh_token");
+        const data = new URLSearchParams();
+        data.set("locationId", `${process.env.LOCATION_ID}`);
+        data.set("groupId", `${process.env.GROUP_ID}`);
+        const access_token = await db.get("access_token");
+        const options = {
+          method: "GET",
+          url: "https://services.leadconnectorhq.com/calendars/",
+          headers: {
+            Authorization: `Bearer ${access_token}`,
+            Version: "2021-04-15",
+            Accept: "application/json",
+          },
+          params: {
+            locationId: process.env.LOCATION_ID,
+            groupId: process.env.GROUP_ID,
+          },
+        };
+          const response = await axios.request(options);
+          return res.json({ data: response.data });
+        
       });
     }
   } else {
@@ -287,8 +309,34 @@ router.get("/bookMeeting", async (req, res) => {
       };
       try{
       const response = await axios.request(options);
-      contactId = response.data.id;
-      res.json({ data: response.data });
+      contactId = await response.data.id;
+      //create a meeting
+      const params = new URLSearchParams();
+      params.set("calendarId", calendar.toString());
+      params.set("contactId", contactId.toString());
+      params.set("locationId", locationId);
+      params.set("startTime", slot.toString());
+
+      const options = {
+        method: "POST",
+        url: `https://services.leadconnectorhq.com/calendars/events/appointments`,
+        headers: {
+          Authorization: `Bearer ${access_token}`,
+          Version: "2021-04-15",
+          Accept: "application/json",
+        },
+        data: params,
+      };
+      try{
+      await axios.request(options).then((response) => 
+       res.json({ data: response.data})
+    ) 
+    }
+      catch(err){
+        console.log(err);
+        res.json({error:err});
+      }
+      
 
     }
     catch(err){
