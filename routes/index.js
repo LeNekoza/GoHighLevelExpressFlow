@@ -4,6 +4,7 @@ import axios from "axios";
 import { URLSearchParams } from "url";
 import refreshToken from "../utils/refreshToken.js";
 import dotenv from "dotenv";
+import { time } from "console";
 dotenv.config();
 var router = express.Router();
 
@@ -181,6 +182,7 @@ router.get("/freeslots", async function (req, res) {
   const startDate = req.query.startDate;
   const endDate = req.query.endDate;
   const calendarId = req.query.calendarId;
+  const timezone = req.query.timezone;
   const token = await db.get("refresh_token");
   if (token) {
     const access_token = await db.get("access_token");
@@ -193,7 +195,7 @@ router.get("/freeslots", async function (req, res) {
         Accept: "application/json",
       },
       params: {
-        timezone: "America/New_York",
+        timezone: timezone,
         userId: "mQ5WIXoPLqQBairj0JYU",
         startDate: startDate,
         endDate: endDate,
