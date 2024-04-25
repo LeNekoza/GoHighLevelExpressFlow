@@ -209,9 +209,9 @@ router.get("/deleteAccess", async (req, res) => {
 
 router.get("/bookMeeting", async (req, res) => {
   let contactId;
-  const { calendar,selectedSlot, firstName, lastName, email, phone } = req.query;
+  const { calendar,slot, firstName, lastName, email, phone } = req.query;
   const locationId = process.env.LOCATION_ID;
-  const userId = "mQ5WIXoPLqQBairj0JYU";
+ /*  const userId = "mQ5WIXoPLqQBairj0JYU"; */
   const access_token = await db.get("access_token");
   //check if user is already in the system
   try{
@@ -234,10 +234,10 @@ router.get("/bookMeeting", async (req, res) => {
       contactId = await response.data.contacts[0].id;
       //create a meeting
       const params = new URLSearchParams();
-      params.set("calendarId", calendar);
-      params.set("contactId", contactId);
+      params.set("calendarId", calendar.toString());
+      params.set("contactId", contactId.toString());
       params.set("locationId", locationId);
-      params.set("startTime", "2024-04-26T03:30:00+05:30");
+      params.set("startTime", slot.toString());
 
       const options = {
         method: "POST",
