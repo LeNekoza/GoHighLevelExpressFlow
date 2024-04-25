@@ -321,7 +321,7 @@ router.get("/bookMeeting", async (req, res) => {
       params.set("locationId", locationId);
       params.set("startTime", slot.toString());
 
-      const options = {
+      const opts =  {
         method: "POST",
         url: `https://services.leadconnectorhq.com/calendars/events/appointments`,
         headers: {
@@ -332,7 +332,7 @@ router.get("/bookMeeting", async (req, res) => {
         data: params,
       };
       try{
-      await axios.request(options).then((response) => 
+      await axios.request(opts).then((response) => 
        res.json({ data: response.data})
     ) 
     }
