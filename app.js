@@ -11,7 +11,7 @@ import cors from "cors";
 var app = express();
 app.use(
   cors({
-    origin: ["http://localhost:3000", "https://127.0.0.1:5000"],
+    origin: ["http://localhost:3000", "https://127.0.0.1:5000","https://c71e6a24-8d1d-4ce9-a6c3-52b1a678656b.zappsusercontent.com"],
     credentials: true,
   })
 );
