@@ -148,23 +148,40 @@ router.get("/accessToken", async function (req, res) {
 export default router;
 
 router.get("/freeslots", async function (req, res) {
+  //if no request params
+  if (!req.query) {
+    return res.json({ error: "No request params" });
+  }
+  const startDate = req.query.startDate;
+  const endDate = req.query.endDate;
+  const calendarId = req.query.calendarId;
   const token = await db.get("refresh_token");
   if (token) {
-    const data = new URLSearchParams();
-    data.set("locationId", `${process.env.LOCATION_ID}`);
-    data.set("groupId", `${process.env.GROUP_ID}`);
+    const now = new Date(); 
+
+  // Get the start of the day
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  // Get the end of the day
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+
+  // Get the start and end time in milliseconds
+    const startOfDayTime = startOfDay.getTime();
+    const endOfDayTime = endOfDay.getTime();
     const access_token = await db.get("access_token");
     const options = {
       method: "GET",
-      url: "https://services.leadconnectorhq.com/calendars/",
+      url: `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots`,
       headers: {
         Authorization: `Bearer ${access_token}`,
         Version: "2021-04-15",
         Accept: "application/json",
       },
       params: {
-        locationId: process.env.LOCATION_ID,
-        groupId: process.env.GROUP_ID,
+        timezone: "America/New_York",
+        userId: "mQ5WIXoPLqQBairj0JYU",
+        startDate: startDate,
+        endDate: endDate,
       },
     };
     try {
@@ -173,18 +190,21 @@ router.get("/freeslots", async function (req, res) {
       return res.json({ data: response.data });
     } catch (err) {
       console.log(err);
-      await refreshToken().then((response) => {
+      res.json({ error: err });
+      /* await refreshToken().then((response) => {
         if (response.error) {
           return res.json({ error: response.error });
         } else {
           return res.json({ message: response.message });
         }
-      });
+      }); */
     }
   } else {
     return res.json({ error: "Session not found" });
   }
 });
+
+
 
 router.get("/deleteEverything", async (req, res) => {
   await db.del("access_token");
