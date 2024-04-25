@@ -52,6 +52,18 @@ export const db = {
       throw error; // Re-throw for caller handling
     }
   },
+  async del(key) {
+    try {
+      if (!isConnected) {
+        await client.connect();
+      }
+      await client.del(key);
+      return "done";
+    } catch (error) {
+      console.error("Error deleting key:", key, error);
+      throw error; // Re-throw for caller handling
+    }
+  },
   async close() {
     await client.quit(); // Close the connection (optional for manual control)
   },

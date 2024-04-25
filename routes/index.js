@@ -157,17 +157,6 @@ router.get("/freeslots", async function (req, res) {
   const calendarId = req.query.calendarId;
   const token = await db.get("refresh_token");
   if (token) {
-    const now = new Date(); 
-
-  // Get the start of the day
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-  // Get the end of the day
-    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-
-  // Get the start and end time in milliseconds
-    const startOfDayTime = startOfDay.getTime();
-    const endOfDayTime = endOfDay.getTime();
     const access_token = await db.get("access_token");
     const options = {
       method: "GET",
@@ -190,14 +179,13 @@ router.get("/freeslots", async function (req, res) {
       return res.json({ data: response.data });
     } catch (err) {
       console.log(err);
-      res.json({ error: err });
-      /* await refreshToken().then((response) => {
+      await refreshToken().then((response) => {
         if (response.error) {
           return res.json({ error: response.error });
         } else {
           return res.json({ message: response.message });
         }
-      }); */
+      });
     }
   } else {
     return res.json({ error: "Session not found" });
@@ -218,3 +206,95 @@ router.get("/deleteAccess", async (req, res) => {
 
   return res.json({ message: "Deleted access token" });
 });
+
+router.get("/bookMeeting", async (req, res) => {
+  let contactId;
+  const { calendar,selectedSlot, firstName, lastName, email, phone } = req.query;
+  const locationId = process.env.LOCATION_ID;
+  const userId = "mQ5WIXoPLqQBairj0JYU";
+  const access_token = await db.get("access_token");
+  //check if user is already in the system
+  try{
+  const options = {
+    method: "GET",
+    url: `https://services.leadconnectorhq.com/contacts/`,
+    headers: {
+      Authorization: `Bearer ${access_token}`,
+      Version: "2021-04-15",
+      Accept: "application/json",
+    },
+    params: {
+      query: email,
+      locationId: locationId,
+    },
+  };
+  const data = await axios.request(options).then(async(response) => {
+    if(response.data.contacts.length > 0){
+      /* return response.data.contacts[0].id; */
+      contactId = await response.data.contacts[0].id;
+      //create a meeting
+      const params = new URLSearchParams();
+      params.set("calendarId", calendar);
+      params.set("contactId", contactId);
+      params.set("locationId", locationId);
+      params.set("startTime", "2024-04-26T03:30:00+05:30");
+
+      const options = {
+        method: "POST",
+        url: `https://services.leadconnectorhq.com/calendars/events/appointments`,
+        headers: {
+          Authorization: `Bearer ${access_token}`,
+          Version: "2021-04-15",
+          Accept: "application/json",
+        },
+        data: params,
+      };
+      try{
+      await axios.request(options).then((response) => 
+       res.json({ data: response.data})
+    ) 
+    }
+      catch(err){
+        console.log(err);
+        res.json({error:err});
+      }
+
+    }
+    else{
+      throw new Error("User not found");
+    }
+  })
+  console.log(data);
+  res.json({ data: data });
+  }
+  catch(err){
+    if(err.message === "User not found"){
+      const data = new URLSearchParams();
+      data.set("firstName", firstName);
+      data.set("lastName", lastName);
+      data.set("email", email);
+      data.set("phone", phone);
+      data.set("locationId", locationId);
+      const options = {
+        method: "POST",
+        url: `https://services.leadconnectorhq.com/contacts/`,
+        headers: {
+          Authorization: `Bearer ${access_token}`,
+          Version: "2021-04-15",
+          Accept: "application/json",
+        },
+        data: data,
+      };
+      try{
+      const response = await axios.request(options);
+      contactId = response.data.id;
+      res.json({ data: response.data });
+
+    }
+    catch(err){
+      console.log(err);
+      res.json({error:err});
+    }
+  }
+  }
+  });
