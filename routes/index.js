@@ -236,8 +236,13 @@ router.get("/deleteAccess", async (req, res) => {
 });
 
 router.get("/bookMeeting", async (req, res) => {
+
   let contactId;
   const { calendar,slot, firstName, lastName, email, phone } = req.query;
+  //if any of the required fields are missing
+  if (!calendar || !slot || !firstName || !lastName || !email || !phone) {
+    return res.json({ error: "Missing required fields" });
+  }
   const locationId = process.env.LOCATION_ID;
  /*  const userId = "mQ5WIXoPLqQBairj0JYU"; */
   const access_token = await db.get("access_token");
@@ -289,9 +294,61 @@ router.get("/bookMeeting", async (req, res) => {
 
     }
     else{
-      throw new Error("User not found");
+      //check via phone number
+      const phoneOptions = {
+        method: "GET",
+        url: `https://services.leadconnectorhq.com/contacts/`,
+        headers: {
+          Authorization: `Bearer ${access_token}`,
+          Version: "2021-04-15",
+          Accept: "application/json",
+        },
+        params: {
+          query: phone,
+          locationId: locationId,
+        },
+      };
+      try{
+      const phoneData = await axios.request(phoneOptions);
+      if(phoneData.data.contacts.length > 0){
+        contactId = await phoneData.data.contacts[0].id;
+        //create a meeting
+        const params = new URLSearchParams();
+        params.set("calendarId", calendar.toString());
+        params.set("contactId", contactId.toString());
+        params.set("locationId", locationId);
+        params.set("startTime", slot.toString());
+
+        const options = {
+          method: "POST",
+          url: `https://services.leadconnectorhq.com/calendars/events/appointments`,
+          headers: {
+            Authorization: `Bearer ${access_token}`,
+            Version: "2021-04-15",
+            Accept: "application/json",
+          },
+          data: params,
+        };
+        try{
+        await axios.request(options).then((response) => 
+         res.json({ data: response.data})
+      ) 
+      }
+        catch(err){
+          console.log(err);
+          res.json({error:err});
+        }
+      }
+      else{
+        throw new Error("User not found");
+      }}
+      catch(err){
+        console.log(err);
+        res.json({error:err});
+      }
     }
-  })
+
+  });
   console.log(data);
   res.json({ data: data });
   }
