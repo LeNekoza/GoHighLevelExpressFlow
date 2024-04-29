@@ -289,16 +289,17 @@ router.get("/bookMeeting", async (req, res) => {
     params.set("locationId", locationId);
     params.set("startTime", slot.toString());
 
-    await axios.post(`https://services.leadconnectorhq.com/calendars/events/appointments`, params, {
+    const resp = await axios.post(`https://services.leadconnectorhq.com/calendars/events/appointments`, params, {
       headers: {
         Authorization: `Bearer ${access_token}`,
         Version: "2021-04-15",
         Accept: "application/json",
       },
     });
+    const meetData = await resp.data;
 
     console.log("Meeting created");
-    return res.json({ success: true, message: "Meeting created successfully." });
+    return res.json({data: meetData});
 
   } catch (error) {
     console.log("Error creating new contact or meeting");
