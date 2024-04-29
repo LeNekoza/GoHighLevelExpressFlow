@@ -4,6 +4,7 @@ import axios from "axios";
 import { URLSearchParams } from "url";
 import refreshToken from "../utils/refreshToken.js";
 import dotenv from "dotenv";
+import { time } from "console";
 dotenv.config();
 var router = express.Router();
 
@@ -38,11 +39,37 @@ router.get("/", async function (req, res, next) {
     } catch (err) {
       console.log(err); /* 
   res.json({error:err}) */
-      await refreshToken().then((response) => {
+      await refreshToken().then(async (response) => {
         if (response.error) {
           return res.json({ error: response.error });
+
         } else {
-          return res.json({ message: response.message });
+          try {
+            const token = await db.get("refresh_token");
+            const data = new URLSearchParams();
+            data.set("locationId", `${process.env.LOCATION_ID}`);
+            data.set("groupId", `${process.env.GROUP_ID}`);
+            const access_token = await db.get("access_token");
+            const options = {
+              method: "GET",
+              url: "https://services.leadconnectorhq.com/calendars/",
+              headers: {
+                Authorization: `Bearer ${access_token}`,
+                Version: "2021-04-15",
+                Accept: "application/json",
+              },
+              params: {
+                locationId: process.env.LOCATION_ID,
+                groupId: process.env.GROUP_ID,
+              },
+            };
+            const lasttry = await axios.request(options);
+            return res.json({ data: lasttry.data });
+          }
+          catch (err) {
+            console.log(err);
+            res.json({ error: err });
+          }
         }
       });
     }
@@ -148,23 +175,30 @@ router.get("/accessToken", async function (req, res) {
 export default router;
 
 router.get("/freeslots", async function (req, res) {
+  //if no request params
+  if (!req.query) {
+    return res.json({ error: "No request params" });
+  }
+  const startDate = req.query.startDate;
+  const endDate = req.query.endDate;
+  const calendarId = req.query.calendarId;
+  const timezone = req.query.timezone;
   const token = await db.get("refresh_token");
   if (token) {
-    const data = new URLSearchParams();
-    data.set("locationId", `${process.env.LOCATION_ID}`);
-    data.set("groupId", `${process.env.GROUP_ID}`);
     const access_token = await db.get("access_token");
     const options = {
       method: "GET",
-      url: "https://services.leadconnectorhq.com/calendars/",
+      url: `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots`,
       headers: {
         Authorization: `Bearer ${access_token}`,
         Version: "2021-04-15",
         Accept: "application/json",
       },
       params: {
-        locationId: process.env.LOCATION_ID,
-        groupId: process.env.GROUP_ID,
+        timezone: timezone,
+        userId: "mQ5WIXoPLqQBairj0JYU",
+        startDate: startDate,
+        endDate: endDate,
       },
     };
     try {
@@ -172,7 +206,6 @@ router.get("/freeslots", async function (req, res) {
 
       return res.json({ data: response.data });
     } catch (err) {
-      console.log(err);
       await refreshToken().then((response) => {
         if (response.error) {
           return res.json({ error: response.error });
@@ -186,6 +219,8 @@ router.get("/freeslots", async function (req, res) {
   }
 });
 
+
+
 router.get("/deleteEverything", async (req, res) => {
   await db.del("access_token");
   await db.del("refresh_token");
@@ -197,4 +232,78 @@ router.get("/deleteAccess", async (req, res) => {
   await db.del("access_token");
 
   return res.json({ message: "Deleted access token" });
+});
+
+router.get("/bookMeeting", async (req, res) => {
+  let contactId;
+  const { calendar, slot, firstName, lastName, email, phone } = req.query;
+  //if any of the required fields are missing
+  if (!calendar || !slot || !firstName || !lastName || !email || !phone) {
+    return res.json({ error: "Missing required fields" });
+  }
+
+  const locationId = process.env.LOCATION_ID;
+  const access_token = await db.get("access_token");
+
+  try {
+    //check if user is already in the system
+    const response = await axios.get(`https://services.leadconnectorhq.com/contacts/`, {
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+        Version: "2021-04-15",
+        Accept: "application/json",
+      },
+      params: {
+        query: email,
+        locationId: locationId,
+      },
+    });
+
+    if (response.data.contacts.length > 0) {
+      console.log("Email found");
+      contactId = response.data.contacts[0].id;
+    } else {
+      const data = new URLSearchParams();
+      data.set("firstName", firstName);
+      data.set("lastName", lastName);
+      data.set("email", email);
+      data.set("phone", phone);
+      data.set("locationId", locationId);
+
+      const response2 = await axios.post(`https://services.leadconnectorhq.com/contacts/upsert`, data, {
+        headers: {
+          Authorization: `Bearer ${access_token}`,
+          Version: "2021-04-15",
+          Accept: "application/json",
+        },
+      });
+
+      contactId = response2.data.id;
+      console.log("New contact created");
+    }
+
+    //create a meeting
+    const params = new URLSearchParams();
+    params.set("calendarId", calendar.toString());
+    params.set("contactId", contactId.toString());
+    params.set("locationId", locationId);
+    params.set("startTime", slot.toString());
+
+    const resp = await axios.post(`https://services.leadconnectorhq.com/calendars/events/appointments`, params, {
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+        Version: "2021-04-15",
+        Accept: "application/json",
+      },
+    });
+    const meetData = await resp.data;
+
+    console.log("Meeting created");
+    return res.json({data: meetData});
+
+  } catch (error) {
+    console.log("Error creating new contact or meeting");
+    console.log(error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
 });

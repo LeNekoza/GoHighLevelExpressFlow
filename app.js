@@ -11,7 +11,7 @@ import cors from "cors";
 var app = express();
 app.use(
   cors({
-    origin: ["http://localhost:3000", "https://127.0.0.1:5000"],
+    origin: ["http://localhost:3000", "https://127.0.0.1:5000","https://beloved-mosquito.static.domains"],
     credentials: true,
   })
 );
