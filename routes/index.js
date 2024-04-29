@@ -39,37 +39,37 @@ router.get("/", async function (req, res, next) {
     } catch (err) {
       console.log(err); /* 
   res.json({error:err}) */
-      await refreshToken().then(async(response) => {
+      await refreshToken().then(async (response) => {
         if (response.error) {
-         return res.json({ error: response.error });
+          return res.json({ error: response.error });
 
         } else {
-          try{
+          try {
             const token = await db.get("refresh_token");
-          const data = new URLSearchParams();
-          data.set("locationId", `${process.env.LOCATION_ID}`);
-          data.set("groupId", `${process.env.GROUP_ID}`);
-          const access_token = await db.get("access_token");
-          const options = {
-            method: "GET",
-            url: "https://services.leadconnectorhq.com/calendars/",
-            headers: {
-              Authorization: `Bearer ${access_token}`,
-              Version: "2021-04-15",
-              Accept: "application/json",
-            },
-            params: {
-              locationId: process.env.LOCATION_ID,
-              groupId: process.env.GROUP_ID,
-            },
-          };
+            const data = new URLSearchParams();
+            data.set("locationId", `${process.env.LOCATION_ID}`);
+            data.set("groupId", `${process.env.GROUP_ID}`);
+            const access_token = await db.get("access_token");
+            const options = {
+              method: "GET",
+              url: "https://services.leadconnectorhq.com/calendars/",
+              headers: {
+                Authorization: `Bearer ${access_token}`,
+                Version: "2021-04-15",
+                Accept: "application/json",
+              },
+              params: {
+                locationId: process.env.LOCATION_ID,
+                groupId: process.env.GROUP_ID,
+              },
+            };
             const lasttry = await axios.request(options);
             return res.json({ data: lasttry.data });
-        }
-        catch(err){
-          console.log(err);
-          res.json({error:err});
-        }
+          }
+          catch (err) {
+            console.log(err);
+            res.json({ error: err });
+          }
         }
       });
     }
@@ -206,7 +206,6 @@ router.get("/freeslots", async function (req, res) {
 
       return res.json({ data: response.data });
     } catch (err) {
-      console.log(err);
       await refreshToken().then((response) => {
         if (response.error) {
           return res.json({ error: response.error });
@@ -236,176 +235,74 @@ router.get("/deleteAccess", async (req, res) => {
 });
 
 router.get("/bookMeeting", async (req, res) => {
-
   let contactId;
-  const { calendar,slot, firstName, lastName, email, phone } = req.query;
+  const { calendar, slot, firstName, lastName, email, phone } = req.query;
   //if any of the required fields are missing
   if (!calendar || !slot || !firstName || !lastName || !email || !phone) {
     return res.json({ error: "Missing required fields" });
   }
+
   const locationId = process.env.LOCATION_ID;
- /*  const userId = "mQ5WIXoPLqQBairj0JYU"; */
   const access_token = await db.get("access_token");
-  //check if user is already in the system
-  try{
-  const options = {
-    method: "GET",
-    url: `https://services.leadconnectorhq.com/contacts/`,
-    headers: {
-      Authorization: `Bearer ${access_token}`,
-      Version: "2021-04-15",
-      Accept: "application/json",
-    },
-    params: {
-      query: email,
-      locationId: locationId,
-    },
-  };
-  const data = await axios.request(options).then(async(response) => {
-    if(response.data.contacts.length > 0){
-      /* return response.data.contacts[0].id; */
-      contactId = await response.data.contacts[0].id;
-      //create a meeting
-      const params = new URLSearchParams();
-      params.set("calendarId", calendar.toString());
-      params.set("contactId", contactId.toString());
-      params.set("locationId", locationId);
-      params.set("startTime", slot.toString());
 
-      const options = {
-        method: "POST",
-        url: `https://services.leadconnectorhq.com/calendars/events/appointments`,
-        headers: {
-          Authorization: `Bearer ${access_token}`,
-          Version: "2021-04-15",
-          Accept: "application/json",
-        },
-        data: params,
-      };
-      try{
-      await axios.request(options).then((response) => 
-       res.json({ data: response.data})
-    ) 
-    }
-      catch(err){
-        console.log(err);
-        res.json({error:err});
-      }
+  try {
+    //check if user is already in the system
+    const response = await axios.get(`https://services.leadconnectorhq.com/contacts/`, {
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+        Version: "2021-04-15",
+        Accept: "application/json",
+      },
+      params: {
+        query: email,
+        locationId: locationId,
+      },
+    });
 
-    }
-    else{
-      //check via phone number
-      const phoneOptions = {
-        method: "GET",
-        url: `https://services.leadconnectorhq.com/contacts/`,
-        headers: {
-          Authorization: `Bearer ${access_token}`,
-          Version: "2021-04-15",
-          Accept: "application/json",
-        },
-        params: {
-          query: phone,
-          locationId: locationId,
-        },
-      };
-      try{
-      const phoneData = await axios.request(phoneOptions);
-      if(phoneData.data.contacts.length > 0){
-        contactId = await phoneData.data.contacts[0].id;
-        //create a meeting
-        const params = new URLSearchParams();
-        params.set("calendarId", calendar.toString());
-        params.set("contactId", contactId.toString());
-        params.set("locationId", locationId);
-        params.set("startTime", slot.toString());
-
-        const options = {
-          method: "POST",
-          url: `https://services.leadconnectorhq.com/calendars/events/appointments`,
-          headers: {
-            Authorization: `Bearer ${access_token}`,
-            Version: "2021-04-15",
-            Accept: "application/json",
-          },
-          data: params,
-        };
-        try{
-        await axios.request(options).then((response) => 
-         res.json({ data: response.data})
-      ) 
-      }
-        catch(err){
-          console.log(err);
-          res.json({error:err});
-        }
-      }
-      else{
-        throw new Error("User not found");
-      }}
-      catch(err){
-        console.log(err);
-        res.json({error:err});
-      }
-    }
-
-  });
-  console.log(data);
-  res.json({ data: data });
-  }
-  catch(err){
-    if(err.message === "User not found"){
+    if (response.data.contacts.length > 0) {
+      console.log("Email found");
+      contactId = response.data.contacts[0].id;
+    } else {
       const data = new URLSearchParams();
       data.set("firstName", firstName);
       data.set("lastName", lastName);
       data.set("email", email);
       data.set("phone", phone);
       data.set("locationId", locationId);
-      const options = {
-        method: "POST",
-        url: `https://services.leadconnectorhq.com/contacts/`,
+
+      const response2 = await axios.post(`https://services.leadconnectorhq.com/contacts/upsert`, data, {
         headers: {
           Authorization: `Bearer ${access_token}`,
           Version: "2021-04-15",
           Accept: "application/json",
         },
-        data: data,
-      };
-      try{
-      const response = await axios.request(options);
-      contactId = await response.data.id;
-      //create a meeting
-      const params = new URLSearchParams();
-      params.set("calendarId", calendar.toString());
-      params.set("contactId", contactId.toString());
-      params.set("locationId", locationId);
-      params.set("startTime", slot.toString());
+      });
 
-      const opts =  {
-        method: "POST",
-        url: `https://services.leadconnectorhq.com/calendars/events/appointments`,
-        headers: {
-          Authorization: `Bearer ${access_token}`,
-          Version: "2021-04-15",
-          Accept: "application/json",
-        },
-        data: params,
-      };
-      try{
-      await axios.request(opts).then((response) => 
-       res.json({ data: response.data})
-    ) 
+      contactId = response2.data.id;
+      console.log("New contact created");
     }
-      catch(err){
-        console.log(err);
-        res.json({error:err});
-      }
-      
 
-    }
-    catch(err){
-      console.log(err);
-      res.json({error:err});
-    }
+    //create a meeting
+    const params = new URLSearchParams();
+    params.set("calendarId", calendar.toString());
+    params.set("contactId", contactId.toString());
+    params.set("locationId", locationId);
+    params.set("startTime", slot.toString());
+
+    await axios.post(`https://services.leadconnectorhq.com/calendars/events/appointments`, params, {
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+        Version: "2021-04-15",
+        Accept: "application/json",
+      },
+    });
+
+    console.log("Meeting created");
+    return res.json({ success: true, message: "Meeting created successfully." });
+
+  } catch (error) {
+    console.log("Error creating new contact or meeting");
+    console.log(error);
+    return res.status(500).json({ success: false, error: error.message });
   }
-  }
-  });
+});
