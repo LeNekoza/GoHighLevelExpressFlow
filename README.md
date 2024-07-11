@@ -1,4 +1,4 @@
-﻿# LeadConnector Integration API for  schduling appointment from Zoho CRM contacts on GHL
+﻿# LeadConnector Integration API for  scheduling appointment from Zoho CRM contacts on GHL
 
 This repository contains code for integrating with the LeadConnectorHQ API. LeadConnectorHQ is a platform that provides tools for managing calendars, appointments, and contacts.
 
